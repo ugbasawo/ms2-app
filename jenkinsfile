@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_HUB_CREDENTIALS = 'dockerhub-repo'
+        GITHUB_USERNAME = 'yourgithubusername'
+        DOCKER_IMAGE_NAMES = ['davidokpe/ms2-app', 'yourdockerhubusername/second-image', 'yourdockerhubusername/third-image']
+        REPO_URLS = ['https://github.com/ugbasawo/nvit-game.git', 'https://github.com/yourusername/second-repo.git', 'https://github.com/yourusername/third-repo.git']
+    }
+    stages {
+        stage('Clone Repositories and Build Docker Images') {
+            steps {
+                script {
+                    for (int i = 0; i < REPO_URLS.size(); i++) {
+                        def repoUrl = REPO_URLS[i]
+                        def imageName = DOCKER_IMAGE_NAMES[i]
+
+                        // Clone repository
+                        git url: repoUrl, branch: 'main'
+
+                        // Build Docker image
+                        sh "docker build -t ${imageName} ."
+                    }
+                }
+            }
+        }
+        stage('Push Docker Images to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-repo', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    script {
+                        for (def imageName : DOCKER_IMAGE_NAMES) {
+                            // Login to Docker Hub
+                            sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+
+                            // Push Docker image
+                            sh "docker push ${imageName}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
